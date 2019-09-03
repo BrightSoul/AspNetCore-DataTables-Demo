@@ -1,0 +1,44 @@
+@model DataTablesConfiguration
+@inject IJsonHelper json
+@{
+    string tableId = $"datatables-{Model.TableName}";
+    bool globallySearchable = Model.ColumnDefinitions.Any(col => col.GloballySearchable);
+    bool columnSearchable = Model.ColumnDefinitions.Any(col => col.Searchable);
+    bool sortable = Model.ColumnDefinitions.Any(col => col.Sortable);
+}
+<table id="@tableId" class="display" style="width:100%"></table>
+<script>
+$(function() {
+    var table = $('#@tableId');
+
+    //Caselle di ricerca per ogni colonna
+    @if (columnSearchable)
+    {
+    <text>
+    table.on("preInit.dt", function() {
+        $(this).find("thead th").each(function() {
+            var searchField = $("<input type=\"search\" class=\"form-control\" />");
+            $(this).append(searchField);
+        });
+
+        table.DataTable().columns().every(function() {
+            var column = this;
+            $('input', column.header()).on('keyup change clear', function() {
+                column.search(this.value).draw();
+            });
+        })
+    });
+    </text>
+    }
+
+    //Configurazione DataTable
+    table.DataTable({
+        "processing": true,
+        "serverSide": true,
+        "searching": @json.Serialize(globallySearchable),
+        "ordering": @json.Serialize(sortable),
+        "ajax": @json.Serialize(Model.Endpoint),
+        "columns": @json.Serialize(Model.ColumnDefinitions)
+    });
+});
+</script>
