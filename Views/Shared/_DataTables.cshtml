@@ -37,7 +37,10 @@ $(function() {
         "serverSide": true,
         "searching": @json.Serialize(globallySearchable),
         "ordering": @json.Serialize(sortable),
-        "ajax": @json.Serialize(Model.Endpoint),
+        "ajax": {
+            url: @json.Serialize(Model.Endpoint),
+            type: "POST"
+        },
         "columns": @json.Serialize(Model.ColumnDefinitions)
     });
 });

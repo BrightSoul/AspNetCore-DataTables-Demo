@@ -4,6 +4,7 @@ using System.Collections.Specialized;
 using System.Linq;
 using System.Web;
 using DataTables.Models.Configuration;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DataTables.Models
@@ -18,10 +19,20 @@ namespace DataTables.Models
         }
         public static DataTablesInputModel FromNameValueCollection(NameValueCollection nameValueCollection, DataTablesConfiguration configuration)
         {
-            int.TryParse(nameValueCollection.Get("draw"), out int draw);
-            int.TryParse(nameValueCollection.Get("start"), out int start);
-            int.TryParse(nameValueCollection.Get("length"), out int length);
-            string search = nameValueCollection.Get("search[value]");
+            Func<string, string> valueProvider = (string key) => nameValueCollection.Get(key);
+            return FromValueProvider(valueProvider, configuration);
+        }
+        public static object FromFormCollection(IFormCollection value, DataTablesConfiguration configuration)
+        {
+            Func<string, string> valueProvider = (string key) => value[key];
+            return FromValueProvider(valueProvider, configuration);
+        }
+        public static DataTablesInputModel FromValueProvider(Func<string, string> valueProvider, DataTablesConfiguration configuration)
+        {
+            int.TryParse(valueProvider("draw"), out int draw);
+            int.TryParse(valueProvider("start"), out int start);
+            int.TryParse(valueProvider("length"), out int length);
+            string search = valueProvider("search[value]");
 
             var columnDefinitions = new List<DataTablesColumnModel>();
             int columnIndex = 0;
@@ -29,7 +40,7 @@ namespace DataTables.Models
             {
                 try
                 {
-                    var columnModel = DataTablesColumnModel.FromNameValueCollection(nameValueCollection, columnIndex++, configuration);
+                    var columnModel = DataTablesColumnModel.FromValueProvider(valueProvider, columnIndex++, configuration);
                     columnDefinitions.Add(columnModel);
                 }
                 catch (IndexOutOfRangeException)
@@ -43,6 +54,7 @@ namespace DataTables.Models
             }
             return new DataTablesInputModel(configuration.TableName, draw, start, length, search, columnDefinitions.AsReadOnly());
         }
+
         private DataTablesInputModel(string tableName, int draw, int start, int length, string search, IReadOnlyCollection<DataTablesColumnModel> columnDefinitions)
         {
             TableName = tableName;
@@ -62,10 +74,11 @@ namespace DataTables.Models
 
     public class DataTablesColumnModel
     {
-        public static DataTablesColumnModel FromNameValueCollection(NameValueCollection nameValueCollection, int columnIndex, DataTablesConfiguration configuration)
+       
+        public static DataTablesColumnModel FromValueProvider(Func<string, string> valueProvider, int columnIndex, DataTablesConfiguration configuration)
         {
             string prefix = $"colums[{columnIndex}]";
-            string columnName = nameValueCollection.Get($"columns[{columnIndex}][name]");
+            string columnName = valueProvider($"columns[{columnIndex}][name]");
 
             if (columnName == null)
             {
@@ -81,7 +94,7 @@ namespace DataTables.Models
             string search = string.Empty;
             if (columnDefinition.Searchable)
             {
-                search = nameValueCollection.Get($"columns[{columnIndex}][search][value]");
+                search = valueProvider($"columns[{columnIndex}][search][value]");
             }
 
             int orderIndex = 0;
@@ -93,10 +106,10 @@ namespace DataTables.Models
             {
                 do
                 {
-                    columnReferenceIndex = nameValueCollection.Get($"order[{orderIndex}][column]");
+                    columnReferenceIndex = valueProvider($"order[{orderIndex}][column]");
                     if (columnReferenceIndex == columnIndex.ToString())
                     {
-                        sortingDirection = "desc".Equals(nameValueCollection.Get($"order[{orderIndex}][dir]"), StringComparison.InvariantCultureIgnoreCase) ?
+                        sortingDirection = "desc".Equals(valueProvider($"order[{orderIndex}][dir]"), StringComparison.InvariantCultureIgnoreCase) ?
                                 DataTablesSortingDirection.Descending : DataTablesSortingDirection.Ascending;
                         break;
                     }
